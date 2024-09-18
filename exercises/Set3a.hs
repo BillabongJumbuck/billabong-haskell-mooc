@@ -54,7 +54,7 @@ mapMaybe f (Just x) = Just $ f x
 --
 -- Examples:
 --   mapMaybe2 take (Just 2) (Just "abcd") ==> Just "ab"
---   mapMaybe2 div (Just 6) (Just 3)  ==>  Just 2
+--   mapMaybe3 div (Just 6) (Just 3)  ==>  Just 2
 --   mapMaybe2 div Nothing  (Just 3)  ==>  Nothing
 --   mapMaybe2 div (Just 6) Nothing   ==>  Nothing
 
@@ -82,8 +82,10 @@ mapMaybe2 f _ _ = Nothing
 palindromeHalfs :: [String] -> [String]
 palindromeHalfs xs = map firstHalf (filter palindrome xs)
 
+firstHalf :: String -> String
 firstHalf xs = take ((length xs + 1) `div` 2) xs
 
+palindrome :: String -> Bool
 palindrome xs = xs == reverse xs
 
 ------------------------------------------------------------------------------
@@ -119,7 +121,7 @@ capitalize = unwords . map (\(x:rest) -> toUpper x : rest ) . words
 --   * the function takeWhile
 
 powers :: Int -> Int -> [Int]
-powers k max = takeWhile (\x -> x <= max) [k^i | i<-[0..max]]
+powers k max = takeWhile (<= max) [k^i | i<-[0..max]]
 
 ------------------------------------------------------------------------------
 -- Ex 7: implement a functional while loop. While should be a function
@@ -163,9 +165,8 @@ while check update value = if check value
 -- Hint! Remember the case-of expression from lecture 2.
 
 whileRight :: (a -> Either b a) -> a -> b
-whileRight check x = case res of Left res -> res
-                                 Right res -> whileRight check res
-                                 where res = check x
+whileRight check x = case check x of Left y->y 
+                                     Right x' -> whileRight check x'
 
 -- for the whileRight examples:
 -- step k x doubles x if it's less than k
@@ -189,7 +190,7 @@ bomb x = Right (x-1)
 -- Hint! This is a great use for list comprehensions
 
 joinToLength :: Int -> [String] -> [String]
-joinToLength len strs = filter ((== len) . length) [x++y | x<-strs, y<-strs]
+joinToLength len strs = [ z | x<-strs, y<-strs, let z = x++y, length z==len]
 
 ------------------------------------------------------------------------------
 -- Ex 10: implement the operator +|+ that returns a list with the first
@@ -221,9 +222,9 @@ joinToLength len strs = filter ((== len) . length) [x++y | x<-strs, y<-strs]
 --   sumRights [Left "bad!", Left "missing"]         ==>  0
 
 sumRights :: [Either a Int] -> Int
-sumRights = sum . map (\x -> case x of Right x -> x
-                                       Left x -> 0)
-
+sumRights (Left _ : xs) = sumRights xs 
+sumRights (Right i :xs) = i+sumRights xs 
+sumRights [] = 0 
 ------------------------------------------------------------------------------
 -- Ex 12: recall the binary function composition operation
 -- (f . g) x = f (g x). In this exercise, your task is to define a function
@@ -237,7 +238,7 @@ sumRights = sum . map (\x -> case x of Right x -> x
 --   multiCompose [reverse, tail, (++"bar")] "foo" ==> "raboo"
 --   multiCompose [(3*), (2^), (+1)] 0 ==> 6
 --   multiCompose [(+1), (2^), (3*)] 0 ==> 2
-
+multiCompose :: [a->a] -> a ->a
 multiCompose fs = if null fs then id else multiCompose (init fs) . last fs
 
 ------------------------------------------------------------------------------
@@ -294,10 +295,15 @@ multiApp f gs x = f $ map ( $ x) gs
 -- function, the surprise won't work. See section 3.8 in the material.
 
 interpreter :: [String] -> [String]
-interpreter commands =  if null commands then []
-                        else case last commands of
-                            "printX" -> (interpreter $ init commands) ++ [ (show . sum . map (\x -> if x == "left" then -1 else 1)
-                                        . filter (\x -> x=="left" || x=="right") $ commands )]
-                            "printY" -> (interpreter $ init commands) ++ [(show . sum . map (\x -> if x == "down" then -1 else 1)
-                                        . filter (\x -> x=="down" || x=="up") $ commands )]
-                            other -> interpreter $ init commands
+interpreter commands =  go 0 0 commands 
+                        where go x y ("up":commands) = go x (y+1) commands
+                              go x y ("down":commands) = go x (y-1) commands
+                              go x y ("left":commands) = go (x-1) y commands
+                              go x y ("right":commands) = go (x+1) y commands
+                              go x y ("printX":commands) = show x : go x y commands
+                              go x y ("printY":commands) = show y : go x y commands
+                              go x y [] = []
+                              go x y (_:commands) = "BAD":go x y commands
+                              
+
+                              
